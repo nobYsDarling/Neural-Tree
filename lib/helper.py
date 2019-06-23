@@ -3,6 +3,8 @@ import pickle
 import tensorflow as tf
 import os
 
+from sklearn.feature_extraction.text import CountVectorizer
+
 
 def next_batch(X, y, batch_size, epochs_completed=0, index_in_epoch=0):
     """
@@ -83,7 +85,7 @@ def load_object(filename):
         return pickle.load(input)
 
 
-def transform_mnist_data(x_train, y_train, x_test, y_test) -> (list, list, list, list, list, list):
+def transform_data(x_train, y_train, x_test=None, y_test=None) -> (list, list, list, list, list, list):
     """
     :param x_train:
     :param y_train:
@@ -92,11 +94,17 @@ def transform_mnist_data(x_train, y_train, x_test, y_test) -> (list, list, list,
 
     :return: x_train, y_train, x_test, y_test, x_validation, y_validation
     """
-    X = np.concatenate((x_train, x_test), axis=0)
-    X = np.array([[e / 256 for l in xs for e in l] for xs in X], dtype=np.float32)
+    if x_test is not None:
+        X = np.concatenate((x_train, x_test), axis=0)
+    else:
+        X = np.array(x_train)
+    # X = np.array([[e / 256 for l in xs for e in l] for xs in X], dtype=np.float32)
 
-    y = np.concatenate((y_train, y_test), axis=0)
-    y = np.array([[1 if e == i else 0 for i in list(range(0, 10))] for e in y], dtype=np.float64)
+    if y_test is not None:
+        y = np.concatenate((y_train, y_test), axis=0)
+    else:
+        y = np.array(y_train)
+    # y = np.array([[1 if e == i else 0 for i in list(range(0, 10))] for e in y], dtype=np.float64)
 
     # test_and_validation_size
     s = round(len(X) * 0.1)
@@ -118,7 +126,7 @@ def get_transformed_mnist_data(cached=True) -> (list, list, list, list, list, li
     else:
         (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
-        x_train, y_train, x_test, y_test, x_validation, y_validation = transform_mnist_data(
+        x_train, y_train, x_test, y_test, x_validation, y_validation = transform_data(
             x_train, y_train, x_test, y_test
         )
 
@@ -130,3 +138,27 @@ def get_transformed_mnist_data(cached=True) -> (list, list, list, list, list, li
         save_object(y_validation, './.tmp/y_validation')
 
         return x_test, y_test, x_train, y_train, x_validation, y_validation
+
+
+def get_transformed_hashtag_data() -> (list, list, list, list, list, list):
+    """
+    cached get and transform mnist data set
+
+    :return: x_test, y_test, x_train, y_train, x_validation, y_validation
+    """
+    o = load_object('./.tmp/6_multilabel_dataset_de_1001_101.pkl')
+
+    o['x'] = o['x'][:50000]
+    o['y'] = o['y'][:50000]
+
+    cvx = CountVectorizer(dtype=np.int8)
+    o['x'] = cvx.fit_transform([' '.join(ws) for ws in o['x']]).toarray()
+
+    cvy = CountVectorizer(dtype=np.int8)
+    o['y'] = cvy.fit_transform([' '.join(ls) for ls in o['y']]).toarray()
+
+    x_train, y_train, x_test, y_test, x_validation, y_validation = transform_data(
+        o['x'], o['y']
+    )
+
+    return x_test, y_test, x_train, y_train, x_validation, y_validation

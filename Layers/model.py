@@ -189,7 +189,7 @@ class SoftDecisionTree(object):
         )
         return c
 
-    def predict(self, X, y, sess):
+    def predict(self, X, y, sess, multi_label=False):
         leafs_distribution, leaf_probs = sess.run(
             [
                 self.leafs_distribution,
@@ -200,7 +200,13 @@ class SoftDecisionTree(object):
                 self.tf_y: y
             }
         )
-        return self.get_prediction_target(leafs_distribution, leaf_probs)
+        return self.get_prediction_target(
+            leafs_distribution,
+            leaf_probs
+        ) if not multi_label else self.get_prediction_targets(
+            leafs_distribution,
+            leaf_probs
+        )
 
     def get_prediction_target(self, leafs_distribution, leaf_probs):
         """
@@ -210,7 +216,29 @@ class SoftDecisionTree(object):
         :return:
         """
         indices = np.argmax(leafs_distribution, axis=1)
-        return [np.argmax(leaf_probs[nn, indices[nn] * self.params.n_classes: \
-                                         indices[nn] * self.params.n_classes \
-                                         + self.params.n_classes]) for nn in
-                range(leaf_probs.shape[0])]
+        return [
+            np.argmax(
+                leaf_probs[nn, indices[nn] * self.params.n_classes:
+                               indices[nn] * self.params.n_classes + self.params.n_classes])
+            for nn in range(leaf_probs.shape[0])
+        ]
+
+    def get_prediction_targets(self, leafs_distribution, leaf_probs):
+        """
+
+        :param leafs_distribution:
+        :param leaf_probs:
+        :return:
+        """
+        indices = np.argmax(leafs_distribution, axis=1)
+        return [
+            [
+                1 if e > 0.1 else 0
+                for e in
+                leaf_probs[
+                nn,
+                indices[nn] * self.params.n_classes:
+                indices[nn] * self.params.n_classes + self.params.n_classes
+                ]
+            ] for nn in range(leaf_probs.shape[0])
+        ]
